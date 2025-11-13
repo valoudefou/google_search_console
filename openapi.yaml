@@ -1,0 +1,409 @@
+openapi: 3.0.3
+info:
+  title: SEO Console API
+  version: 1.0.0
+  description: |
+    JSON REST API that exposes Search Console style data for sites, search analytics,
+    URL inspection, and sitemap visibility checks. All requests require OAuth2 bearer
+    tokens and respond with RFC7807-inspired error envelopes when something goes wrong.
+servers:
+  - url: https://api.yourdomain.com/v1
+    description: Production
+security:
+  - OAuth2: [search-console]
+tags:
+  - name: Sites
+  - name: Search Analytics
+  - name: URL Inspection
+  - name: Sitemaps
+paths:
+  /sites:
+    get:
+      tags: [Sites]
+      summary: List sites available to the authenticated user
+      operationId: listSites
+      responses:
+        "200":
+          description: List of accessible sites
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SitesResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+  /sites/{siteId}/searchAnalytics:query:
+    post:
+      tags: [Search Analytics]
+      summary: Query aggregated search analytics data for a site
+      operationId: querySearchAnalytics
+      parameters:
+        - name: siteId
+          in: path
+          required: true
+          description: Site identifier, e.g. `sc-domain:example.com` or `https://www.example.com/`.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchAnalyticsQueryRequest"
+            example:
+              startDate: "2025-01-01"
+              endDate: "2025-01-31"
+              dimensions: ["query", "page"]
+              dimensionFilterGroups:
+                - groupType: AND
+                  filters:
+                    - dimension: country
+                      operator: EQUALS
+                      expression: GB
+              rowLimit: 25000
+              startRow: 0
+      responses:
+        "200":
+          description: Aggregated analytics rows
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchAnalyticsQueryResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+  /sites/{siteId}/urlInspection:index:
+    post:
+      tags: [URL Inspection]
+      summary: Inspect a URL and retrieve the latest crawl status
+      operationId: inspectUrl
+      parameters:
+        - name: siteId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Site identifier that must own the inspection URL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UrlInspectionRequest"
+            example:
+              inspectionUrl: https://example.com/blue-shoes
+      responses:
+        "200":
+          description: Inspection result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UrlInspectionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /sites/{siteId}/sitemaps:
+    get:
+      tags: [Sitemaps]
+      summary: List submitted sitemaps for a site
+      operationId: listSitemaps
+      parameters:
+        - name: siteId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Site identifier whose sitemap submissions should be returned.
+      responses:
+        "200":
+          description: Collection of sitemap metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SitemapsResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+components:
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.yourdomain.com/oauth/authorize
+          tokenUrl: https://auth.yourdomain.com/oauth/token
+          scopes:
+            search-console: Read and manage Search Console data.
+  responses:
+    BadRequestError:
+      description: Malformed request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: 400
+              message: Invalid dimension requested
+              details: '"device" is not compatible with chosen searchType'
+    UnauthorizedError:
+      description: Missing or invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: 401
+              message: Unauthorized
+              details: Bearer token is invalid or expired
+    ForbiddenError:
+      description: Authenticated user lacks access to the target site
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: 403
+              message: Access denied
+              details: User has no access to this property
+    NotFoundError:
+      description: Resource does not exist or is not visible
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: 404
+              message: Not found
+              details: Site or sitemap was not found
+  schemas:
+    SitesResponse:
+      type: object
+      required: [sites]
+      properties:
+        sites:
+          type: array
+          items:
+            $ref: "#/components/schemas/SiteProperty"
+    SiteProperty:
+      type: object
+      required: [id, displayName, type]
+      properties:
+        id:
+          type: string
+          description: Unique property identifier such as `sc-domain:example.com`.
+        displayName:
+          type: string
+        type:
+          type: string
+          enum: [DOMAIN, URL_PREFIX]
+    SearchAnalyticsQueryRequest:
+      type: object
+      required:
+        - startDate
+        - endDate
+        - dimensions
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        searchType:
+          type: string
+          enum: [WEB, IMAGE, VIDEO, NEWS]
+          default: WEB
+        dimensions:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+            enum: [query, page, country, device, searchType, date]
+        dimensionFilterGroups:
+          type: array
+          items:
+            $ref: "#/components/schemas/DimensionFilterGroup"
+        rowLimit:
+          type: integer
+          minimum: 1
+          maximum: 25000
+          default: 1000
+        startRow:
+          type: integer
+          minimum: 0
+          default: 0
+    DimensionFilterGroup:
+      type: object
+      required: [groupType, filters]
+      properties:
+        groupType:
+          type: string
+          enum: [AND, OR]
+        filters:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/DimensionFilter"
+    DimensionFilter:
+      type: object
+      required: [dimension, operator, expression]
+      properties:
+        dimension:
+          type: string
+          enum: [query, page, country, device, searchType, date]
+        operator:
+          type: string
+          enum: [EQUALS, NOT_EQUALS, CONTAINS, NOT_CONTAINS]
+        expression:
+          type: string
+    SearchAnalyticsQueryResponse:
+      type: object
+      required: [rows]
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchAnalyticsRow"
+    SearchAnalyticsRow:
+      type: object
+      required:
+        - keys
+        - clicks
+        - impressions
+        - ctr
+        - position
+      properties:
+        keys:
+          type: array
+          items:
+            type: string
+        clicks:
+          type: number
+          format: double
+        impressions:
+          type: number
+          format: double
+        ctr:
+          type: number
+          format: double
+        position:
+          type: number
+          format: double
+    UrlInspectionRequest:
+      type: object
+      required: [inspectionUrl]
+      properties:
+        inspectionUrl:
+          type: string
+          format: uri
+    UrlInspectionResponse:
+      type: object
+      required: [result]
+      properties:
+        result:
+          $ref: "#/components/schemas/UrlInspectionResult"
+    UrlInspectionResult:
+      type: object
+      required:
+        - url
+        - indexStatus
+        - lastCrawlTime
+        - robotsState
+        - canonicalUrl
+        - mobileFriendly
+        - mobileIssues
+        - richResultTypes
+      properties:
+        url:
+          type: string
+          format: uri
+        indexStatus:
+          type: string
+          enum: [INDEXED, NOT_INDEXED, BLOCKED, UNKNOWN]
+        lastCrawlTime:
+          type: string
+          format: date-time
+        robotsState:
+          type: string
+          enum: [ALLOWED, BLOCKED, UNKNOWN]
+        canonicalUrl:
+          type: string
+          format: uri
+          nullable: true
+        mobileFriendly:
+          type: boolean
+        mobileIssues:
+          type: array
+          items:
+            type: string
+        richResultTypes:
+          type: array
+          items:
+            type: string
+    SitemapsResponse:
+      type: object
+      required: [sitemaps]
+      properties:
+        sitemaps:
+          type: array
+          items:
+            $ref: "#/components/schemas/SitemapInfo"
+    SitemapInfo:
+      type: object
+      required:
+        - path
+        - type
+        - lastSubmitted
+        - lastProcessed
+        - discoveredUrls
+        - indexedUrls
+      properties:
+        path:
+          type: string
+          example: /sitemap.xml
+        type:
+          type: string
+          enum: [SITEMAP, RSS, ATOM]
+        lastSubmitted:
+          type: string
+          format: date-time
+        lastProcessed:
+          type: string
+          format: date-time
+        discoveredUrls:
+          type: integer
+          minimum: 0
+        indexedUrls:
+          type: integer
+          minimum: 0
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: integer
+            message:
+              type: string
+            details:
+              type: string

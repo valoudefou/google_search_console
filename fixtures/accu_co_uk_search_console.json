@@ -1,0 +1,35 @@
+{
+  "site": "https://accu.co.uk/",
+  "search_console_rows": [
+    {
+      "date": "2025-01-15",
+      "page": "https://accu.co.uk/pricing",
+      "query": "feature flag tool",
+      "country": "GB",
+      "device": "mobile",
+      "impressions": 5400,
+      "clicks": 110,
+      "position": 3.2
+    },
+    {
+      "date": "2025-01-15",
+      "page": "https://accu.co.uk/docs/getting-started",
+      "query": "ab testing setup",
+      "country": "FR",
+      "device": "desktop",
+      "impressions": 820,
+      "clicks": 9,
+      "position": 11.4
+    },
+    {
+      "date": "2025-01-15",
+      "page": "https://accu.co.uk/enterprise",
+      "query": "enterprise optimisation platform",
+      "country": "DE",
+      "device": "mobile",
+      "impressions": 2600,
+      "clicks": 55,
+      "position": 6.7
+    }
+  ]
+}

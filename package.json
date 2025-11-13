@@ -1,0 +1,17 @@
+{
+  "name": "google_search_console",
+  "version": "1.0.0",
+  "description": "Mini Search Console style API that you can stand up behind your own OAuth2 server and data warehouse. The OpenAPI document (`openapi.yaml`) captures the surface area so you can scaffold servers, SDKs, tests, and mocks.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "echo \"No tests configured\" && exit 0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
