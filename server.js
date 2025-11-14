@@ -15,6 +15,14 @@ const analyticsFixturePath = path.join(
 const analyticsFixture = JSON.parse(
   fs.readFileSync(analyticsFixturePath, "utf-8")
 );
+const ensureTrailingSlash = (value = "") =>
+  value.endsWith("/") ? value : `${value}/`;
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const fixtureSiteRegex = new RegExp(
+  `^${escapeRegExp(ensureTrailingSlash(analyticsFixture.site))}`
+);
+const replaceFixtureSite = (value, siteId) =>
+  value.replace(fixtureSiteRegex, ensureTrailingSlash(siteId));
 
 const SITES = [
   {
@@ -78,22 +86,28 @@ app.get("/v1/sites", (_req, res) => {
 app.post("/v1/sites/:siteId/searchAnalytics:query", (req, res) => {
   const siteId = resolveSiteId(req.params.siteId);
   if (!siteId) return sendError(res, 400, "Missing siteId");
-  if (siteId !== analyticsFixture.site) {
-    return sendError(res, 404, "Site not found", `${siteId} has no fixture`);
-  }
-  res.json({ search_console_rows: analyticsFixture.search_console_rows });
+  const searchRows = analyticsFixture.search_console_rows.map((row) => ({
+    ...row,
+    page: replaceFixtureSite(row.page, siteId),
+  }));
+  res.json({ search_console_rows: searchRows });
 });
 
 app.post("/v1/sites/:siteId/urlInspection:index", (req, res) => {
   const siteId = resolveSiteId(req.params.siteId);
   if (!siteId) return sendError(res, 400, "Missing siteId");
-  if (siteId !== analyticsFixture.site) {
-    return sendError(res, 404, "Site not found", `${siteId} has no fixture`);
-  }
-  const inspectionUrl = req.body?.inspectionUrl || DEFAULT_URL_INSPECTION.url;
+  const defaultInspection = {
+    ...DEFAULT_URL_INSPECTION,
+    url: replaceFixtureSite(DEFAULT_URL_INSPECTION.url, siteId),
+    canonicalUrl: replaceFixtureSite(
+      DEFAULT_URL_INSPECTION.canonicalUrl,
+      siteId
+    ),
+  };
+  const inspectionUrl = req.body?.inspectionUrl || defaultInspection.url;
   res.json({
     result: {
-      ...DEFAULT_URL_INSPECTION,
+      ...defaultInspection,
       url: inspectionUrl,
       canonicalUrl: inspectionUrl,
     },

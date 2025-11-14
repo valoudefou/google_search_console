@@ -8,6 +8,7 @@ Mini Search Console style API that you can stand up behind your own OAuth2 serve
 - **Consistent error envelope** (`error.code`, `error.message`, `error.details`) across all endpoints.
 - **4 feature areas** aligned with Search Console: sites, search analytics, URL inspection, and sitemaps.
 - **Strict data models** that mirror the Google Search Console concepts so you can map directly to your own tables.
+- **Site-agnostic fixtures** that rewrite the canned responses so you can test any property, not just the sample `https://example.com/` domain.
 
 ## Endpoints overview
 
@@ -22,14 +23,14 @@ See `openapi.yaml` for the full schema definitions, field requirements, validati
 
 ## Sample data
 
-The fixture `fixtures/accu_co_uk_search_console.json` returns canned analytics rows for the property `https://accu.co.uk/`. If you stub `/sites/https://accu.co.uk/searchAnalytics:query` to read that file you will respond with:
+The sample fixture in the `fixtures/` directory returns canned analytics rows for the property `https://example.com/`. The server uses a regular expression to swap that base URL for whichever site you request so you can validate with any property while reusing the same JSON. If you stub `/sites/https://example.com/searchAnalytics:query` to read that file you will respond with:
 
 ```json
 {
   "search_console_rows": [
     {
       "date": "2025-01-15",
-      "page": "https://accu.co.uk/pricing",
+      "page": "https://example.com/pricing",
       "query": "feature flag tool",
       "country": "GB",
       "device": "mobile",
@@ -39,7 +40,7 @@ The fixture `fixtures/accu_co_uk_search_console.json` returns canned analytics r
     },
     {
       "date": "2025-01-15",
-      "page": "https://accu.co.uk/docs/getting-started",
+      "page": "https://example.com/docs/getting-started",
       "query": "ab testing setup",
       "country": "FR",
       "device": "desktop",
@@ -49,7 +50,7 @@ The fixture `fixtures/accu_co_uk_search_console.json` returns canned analytics r
     },
     {
       "date": "2025-01-15",
-      "page": "https://accu.co.uk/enterprise",
+      "page": "https://example.com/enterprise",
       "query": "enterprise optimisation platform",
       "country": "DE",
       "device": "mobile",
@@ -68,13 +69,13 @@ Use this to validate your client code without touching a real warehouse.
 1. Install dependencies: `npm install`
 2. Start the server: `npm start` (exposes `http://localhost:4000/v1`)
 
-### Fetching the Accu fake data
+### Fetching fake data for any site
 
 Because the `siteId` contains reserved URL characters, encode it when calling the API. Example request that returns the `search_console_rows` payload above:
 
 ```bash
 curl -X POST \
-  http://localhost:4000/v1/sites/https%3A%2F%2Faccu.co.uk%2F/searchAnalytics:query \
+  http://localhost:4000/v1/sites/https%3A%2F%2Fexample.com%2F/searchAnalytics:query \
   -H "Content-Type: application/json" \
   -d '{
         "startDate": "2025-01-01",
@@ -90,7 +91,7 @@ The response body mirrors the fixture:
   "search_console_rows": [
     {
       "date": "2025-01-15",
-      "page": "https://accu.co.uk/pricing",
+      "page": "https://example.com/pricing",
       "query": "feature flag tool",
       "country": "GB",
       "device": "mobile",
@@ -100,7 +101,7 @@ The response body mirrors the fixture:
     },
     {
       "date": "2025-01-15",
-      "page": "https://accu.co.uk/docs/getting-started",
+      "page": "https://example.com/docs/getting-started",
       "query": "ab testing setup",
       "country": "FR",
       "device": "desktop",
@@ -110,7 +111,7 @@ The response body mirrors the fixture:
     },
     {
       "date": "2025-01-15",
-      "page": "https://accu.co.uk/enterprise",
+      "page": "https://example.com/enterprise",
       "query": "enterprise optimisation platform",
       "country": "DE",
       "device": "mobile",
@@ -121,6 +122,8 @@ The response body mirrors the fixture:
   ]
 }
 ```
+
+You can swap the encoded `siteId` for any other property (for example, `https%3A%2F%2Fexample.com%2F`). The server uses a regular expression to rewrite the fixture URLs before responding so you always get realistic looking data for the site you are testing.
 
 ## Wiring to your backend
 
@@ -151,7 +154,4 @@ app.post("/v1/sites/:siteId/searchAnalytics:query", authenticate, async (req, re
 
 Use the `ErrorResponse` schema to normalize failures in your Express error middleware so clients always receive the documented JSON envelope.
 
-## Next steps
 
-- Generate server/client code with your favorite OpenAPI tool (e.g., `openapi-generator`, `prism`, `stoplight`).
-- Backfill tests or contract mocks from the schema to lock in behavior as you iterate.
